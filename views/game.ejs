@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Home</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+      .chessboard {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        grid-template-rows: repeat(8, minmax(0, 1fr));
+        width: 400px;
+        height: 400px;
+        transform: rotate(0deg);
+      }
+
+      .piece.white {
+        color: white;
+        filter: drop-shadow(0 0 2px rgba(0, 0, 0, 1));
+      }
+
+      .piece.black {
+        color: black;
+      }
+
+      .flipped {
+        transform: rotate(180deg);
+      }
+
+      .square {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .square.light {
+        background-color: #f0d9b5;
+      }
+
+      .square.dark {
+        background-color: #b58863;
+      }
+
+      .piece {
+        font-family: "DejaVu Sans", "Arial Unicode MS", "Noto Sans Symbols",
+          sans-serif;
+        font-size: 36px;
+        cursor: pointer;
+      }
+
+      .piece.draggable {
+        cursor: grab;
+      }
+
+      .dragging {
+        opacity: 0.5;
+      }
+
+      .flipped .piece {
+        transform: rotate(180deg);
+      }
+
+      #turn-indicator {
+        transition: color 0.3s ease;
+      }
+
+      #timer {
+        font-family: monospace;
+        letter-spacing: 1px;
+      }
+      .game-over-popup {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        border: 2px solid #333;
+        padding: 30px;
+        z-index: 1000;
+        text-align: center;
+        font-family: sans-serif;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+
+      .game-over-popup {
+        position: fixed; /* Fixed relative to viewport */
+        top: 50%;
+        left: 50%;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7); /* semi-transparent background */
+        display: flex; /* Flexbox to center content */
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+
+      .popup-content {
+        background: #1e1e2f;
+        padding: 30px 40px;
+        border-radius: 12px;
+        text-align: center;
+        color: #fff;
+        min-width: 300px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        font-family: "Arial", sans-serif;
+      }
+
+      .popup-content h2 {
+        font-size: 2rem;
+        margin-bottom: 15px;
+        color: #facc15; /* gold */
+      }
+
+      .popup-content .result {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+
+      .popup-content .reason {
+        font-size: 1rem;
+        margin-bottom: 20px;
+        color: #f87171; /* red for loss / warning */
+      }
+
+      #go-home-btn {
+        padding: 10px 25px;
+        font-size: 1rem;
+        background-color: #4ade80; /* green */
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.3s;
+      }
+
+      #go-home-btn:hover {
+        background-color: #22c55e;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      class="w-full h-screen flex flex-col justify-center items-center bg-zinc-900 text-white"
+    >
+      <div id="turn-indicator" class="text-2xl mb-4 font-semibold">
+        Waiting for game to start...
+      </div>
+      <div id="timer" class="text-xl mb-6">⏱ 45s</div>
+      <div class="chessboard w-96 h-96 bg-red-800"></div>
+    </div>
+
+    <script
+      src="https://cdn.socket.io/4.8.1/socket.io.min.js"
+      integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"
+      integrity="sha512-xRllwz2gdZciIB+AkEbeq+gVhX8VB8XsfqeFbUh+SzHlN96dEduwtTuVuc2u9EROlmW9+yhRlxjif66ORpsgVA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script src="/js/chessgame.js"></script>
+  </body>
+</html>
