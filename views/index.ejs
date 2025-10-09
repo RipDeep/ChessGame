@@ -1,114 +1,776 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title><%= title %></title>
+  <title><%= title %> | Chess Master</title>
   <link rel="stylesheet" href="/style.css">
   <style>
-    /* Global Styles */
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    /* RESET & GLOBAL */
+    * {
       margin: 0;
       padding: 0;
-      background: linear-gradient(135deg, #f0f0f0 0%, #c0c0c0 100%);
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Poppins', 'Segoe UI', sans-serif;
+      color: #fff;
+      background: radial-gradient(circle at 50% 20%, #1a1a1a 0%, #000 100%);
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      position: relative;
     }
 
-    /* Home Container */
+    /* BACKGROUND ANIMATION GRID */
+    .bg-grid {
+      position: absolute;
+      inset: 0;
+      background: 
+        linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: 0;
+      animation: moveGrid 15s linear infinite;
+    }
+
+    @keyframes moveGrid {
+      0% { background-position: 0 0, 0 0; }
+      100% { background-position: 40px 40px, 40px 40px; }
+    }
+
+    /* CONTAINER */
     .home-container {
+      position: relative;
+      z-index: 1;
       text-align: center;
-      background: rgba(255, 255, 255, 0.9);
-      padding: 60px 80px;
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(12px);
+      padding: clamp(30px, 6vw, 70px) clamp(20px, 6vw, 90px);
       border-radius: 20px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-      animation: fadeIn 1s ease-in-out;
+      box-shadow: 0 0 60px rgba(0,0,0,0.8);
+      border: 1px solid rgba(255,255,255,0.08);
+      animation: fadeIn 1.2s ease-in-out;
+      width: min(90%, 700px);
+      max-height: 90%;
     }
 
+    /* HEADING */
     .home-container h1 {
-      font-size: 48px;
-      color: #333;
-      margin-bottom: 40px;
+      font-size: clamp(2rem, 6vw, 3.8rem);
+      font-weight: 700;
+      margin-bottom: 15px;
+      background: linear-gradient(90deg, #ffffff, #e0e0e0, #ffffff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
       text-transform: uppercase;
       letter-spacing: 2px;
+      text-shadow: 0 0 10px rgba(108, 106, 107, 0.3);
     }
 
-    /* Play Button */
-    .play-btn {
-      padding: 15px 50px;
-      font-size: 24px;
-      font-weight: bold;
-      background: linear-gradient(90deg, #4ade80, #22c55e);
-      color: #fff;
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
-      box-shadow: 0 8px 15px rgba(0,0,0,0.2);
-      margin-top: 25px;
+    .home-container p {
+      font-size: clamp(0.9rem, 2vw, 1.2rem);
+      color: #94a3b8;
+      margin-bottom: 2.5rem;
+      letter-spacing: 0.5px;
     }
 
-    .play-btn:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 15px 25px rgba(0,0,0,0.3);
-    }
-
-    /* Chessboard Preview */
+    /* RESPONSIVE CHESSBOARD */
     .chessboard-preview {
+      --square-size: min(9vw, 55px);
       display: grid;
-      grid-template-columns: repeat(8, 40px);
-      grid-template-rows: repeat(8, 40px);
-      margin: 30px auto 0;
-      border: 2px solid #333;
+      grid-template-columns: repeat(8, var(--square-size));
+      grid-template-rows: repeat(8, var(--square-size));
+      margin: 0 auto 40px;
+      border: 2px solid rgba(255,255,255,0.15);
       border-radius: 10px;
       overflow: hidden;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+      box-shadow: 0 0 25px rgba(0,255,200,0.15);
+      transform: perspective(800px) rotateX(25deg);
+      transition: all 0.8s ease;
+      width: calc(var(--square-size) * 8);
+      height: calc(var(--square-size) * 8);
+      touch-action: none;
+    }
+
+    .chessboard-preview:hover {
+      transform: perspective(800px) rotateX(0deg) scale(1.02);
+      box-shadow: 0 0 35px rgba(0,255,200,0.25);
     }
 
     .square {
-      width: 40px;
-      height: 40px;
+      width: var(--square-size);
+      height: var(--square-size);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
+      font-size: calc(var(--square-size) * 0.4);
+      transition: background 0.3s ease;
     }
 
-    .light { background: #f0d9b5; }
-    .dark { background: #b58863; color: white; }
+    .light { background: #3b3b3b; }
+    .dark { background: #111; }
+    .square:hover { background: rgba(0,255,180,0.3); }
 
-    /* Animations */
+    /* PLAY BUTTON */
+    .play-btn {
+      position: relative;
+      padding: clamp(12px, 2vw, 16px) clamp(40px, 8vw, 70px);
+      font-size: clamp(1rem, 2vw, 1.3rem);
+      font-weight: 600;
+      color: #fff;
+      background: linear-gradient(90deg, #0ea5e9, #22d3ee);
+      border: none;
+      border-radius: 60px;
+      cursor: pointer;
+      box-shadow: 0 0 30px rgba(14,165,233,0.4);
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .play-btn::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: rgba(255,255,255,0.15);
+      transform: skewX(-20deg);
+      transition: left 0.4s ease;
+    }
+
+    .play-btn:hover::before {
+      left: 100%;
+    }
+
+    .play-btn:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 0 45px rgba(14,165,233,0.6);
+    }
+
+    /* ANIMATION */
     @keyframes fadeIn {
-      0% { opacity: 0; transform: translateY(-20px);}
-      100% { opacity: 1; transform: translateY(0);}
+      from { opacity: 0; transform: translateY(40px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* MEDIA QUERIES */
+    @media (max-width: 768px) {
+      .chessboard-preview {
+        --square-size: 8vw;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        overflow-y: auto;
+        padding: 20px;
+      }
+      .home-container {
+        width: 95%;
+        padding: 40px 25px;
+      }
+      .chessboard-preview {
+        --square-size: 10vw;
+        margin-bottom: 30px;
+      }
+      .home-container h1 {
+        font-size: 2rem;
+      }
+      .play-btn {
+        width: 100%;
+        border-radius: 50px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .chessboard-preview {
+        --square-size: 11vw;
+      }
+    }
+
+    @media (min-width: 1600px) {
+      .chessboard-preview {
+        --square-size: min(4vw, 80px);
+      }
     }
   </style>
 </head>
 <body>
-  <div class="home-container">
-    <h1>Chess Game</h1>
-    
-    <!-- Optional Chessboard Preview -->
-    <div class="chessboard-preview" id="preview-board"></div>
 
-    <a href="/game"><button class="play-btn">Play Now</button></a>
+  <div class="bg-grid"></div>
+
+  <div class="home-container">
+    <h1>Chess Master</h1>
+    <p>Unleash your strategy. Outsmart. Dominate. Conquer the board.</p>
+    
+    <div class="chessboard-preview" id="preview-board"></div>
+    
+    <a href="/game">
+      <button class="play-btn">Play Now</button>
+    </a>
   </div>
 
   <script>
-    // Chessboard Preview
+    // Generate Chessboard Squares
     const previewBoard = document.getElementById('preview-board');
-    const rows = 8, cols = 8;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
         const square = document.createElement('div');
-        square.classList.add('square');
-        if ((r + c) % 2 === 0) square.classList.add('light');
-        else square.classList.add('dark');
+        square.classList.add('square', (r + c) % 2 === 0 ? 'light' : 'dark');
         previewBoard.appendChild(square);
       }
     }
   </script>
 </body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chess Master - Home</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background: #000000;
+        color: #ffffff;
+        min-height: 100vh;
+        overflow-x: hidden;
+        position: relative;
+      }
+
+      /* Animated Background */
+      .bg-pattern {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(
+            circle at 30% 20%,
+            rgba(14, 165, 233, 0.15) 0%,
+            transparent 40%
+          ),
+          radial-gradient(
+            circle at 70% 80%,
+            rgba(34, 211, 238, 0.1) 0%,
+            transparent 40%
+          ),
+          radial-gradient(
+            circle at 50% 50%,
+            rgba(6, 182, 212, 0.05) 0%,
+            transparent 50%
+          );
+        z-index: 0;
+        animation: gradientShift 15s ease infinite;
+      }
+
+      @keyframes gradientShift {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.8;
+        }
+      }
+
+      .bg-grid {
+        position: fixed;
+        inset: 0;
+        background-image: linear-gradient(
+            rgba(14, 165, 233, 0.03) 1px,
+            transparent 1px
+          ),
+          linear-gradient(90deg, rgba(14, 165, 233, 0.03) 1px, transparent 1px);
+        background-size: 60px 60px;
+        z-index: 0;
+        animation: gridMove 30s linear infinite;
+      }
+
+      @keyframes gridMove {
+        0% {
+          transform: translate(0, 0);
+        }
+        100% {
+          transform: translate(60px, 60px);
+        }
+      }
+
+      /* Floating Particles */
+      .particle {
+        position: fixed;
+        width: 4px;
+        height: 4px;
+        background: rgba(14, 165, 233, 0.3);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+        animation: float 20s linear infinite;
+      }
+
+      @keyframes float {
+        0% {
+          transform: translateY(100vh) translateX(0);
+          opacity: 0;
+        }
+        10% {
+          opacity: 1;
+        }
+        90% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-100px) translateX(100px);
+          opacity: 0;
+        }
+      }
+
+      /* Main Container */
+      .container {
+        position: relative;
+        z-index: 1;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      }
+
+      /* Hero Section */
+      .hero {
+        text-align: center;
+        max-width: 1200px;
+        width: 100%;
+        animation: fadeInUp 1s ease-out;
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Logo/Title */
+      .logo {
+        font-size: clamp(3rem, 8vw, 6rem);
+        font-weight: 800;
+        margin-bottom: 1.5rem;
+        background: linear-gradient(
+          135deg,
+          #ffffff 0%,
+          #0ea5e9 50%,
+          #22d3ee 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -2px;
+        line-height: 1.1;
+        text-transform: uppercase;
+        position: relative;
+        text-shadow: 0 0 80px rgba(14, 165, 233, 0.5);
+      }
+
+      .logo-icon {
+        font-size: clamp(4rem, 10vw, 7rem);
+        display: block;
+        margin-bottom: 0.5rem;
+        animation: 3s ease-in;
+      }
+
+      @keyframes floatIcon {
+        0%,
+        100% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(-15px);
+        }
+      }
+
+      .tagline {
+        font-size: clamp(1rem, 2.5vw, 1.5rem);
+        color: #94a3b8;
+        margin-bottom: 1rem;
+        font-weight: 400;
+        letter-spacing: 1px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+        line-height: 1.6;
+      }
+
+      /* Chessboard Preview */
+      .board-preview-container {
+        margin: 3rem auto;
+        perspective: 1200px;
+        max-width: 600px;
+        width: 100%;
+      }
+
+      .chessboard-preview {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        grid-template-rows: repeat(8, 1fr);
+        aspect-ratio: 1;
+        width: 100%;
+        max-width: 550px;
+        margin: 0 auto;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 0 60px rgba(14, 165, 233, 0.3),
+          0 20px 60px rgba(0, 0, 0, 0.6);
+        transform: rotateX(25deg) rotateZ(-5deg);
+        transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        border: 2px solid rgba(14, 165, 233, 0.2);
+        position: relative;
+      }
+
+      .chessboard-preview::before {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        background: linear-gradient(
+          135deg,
+          rgba(14, 165, 233, 0.4),
+          rgba(34, 211, 238, 0.4)
+        );
+        border-radius: 16px;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        z-index: -1;
+      }
+
+      .chessboard-preview:hover {
+        transform: rotateX(0deg) rotateZ(0deg) scale(1.02);
+        box-shadow: 0 0 80px rgba(14, 165, 233, 0.5),
+          0 30px 80px rgba(0, 0, 0, 0.8);
+      }
+
+      .chessboard-preview:hover::before {
+        opacity: 1;
+      }
+
+      .square {
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: clamp(1.5rem, 4vw, 2.5rem);
+        transition: all 0.3s ease;
+        position: relative;
+        cursor: pointer;
+      }
+
+      .square.light {
+        background: #1a1a1a;
+      }
+
+      .square.dark {
+        background: #0a0a0a;
+      }
+
+      .square:hover {
+        background: rgba(14, 165, 233, 0.3);
+        transform: scale(1.1);
+        z-index: 10;
+      }
+
+      /* CTA Button */
+      .cta-container {
+        margin-top: 3rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+      }
+
+      .play-btn {
+        position: relative;
+        padding: 1.25rem 4rem;
+        font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+        font-weight: 700;
+        color: #ffffff;
+        background: linear-gradient(135deg, #0ea5e9, #22d3ee);
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        overflow: hidden;
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: 0 0 40px rgba(14, 165, 233, 0.4),
+          0 10px 30px rgba(0, 0, 0, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        z-index: 1;
+      }
+
+      .play-btn::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #22d3ee, #06b6d4);
+        opacity: 0;
+        transition: opacity 0.4s ease;
+        z-index: -1;
+      }
+
+      .play-btn::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: width 0.6s ease, height 0.6s ease;
+      }
+
+      .play-btn:hover {
+        transform: translateY(-5px) scale(1.05);
+        box-shadow: 0 0 60px rgba(14, 165, 233, 0.6),
+          0 20px 40px rgba(0, 0, 0, 0.4);
+      }
+
+      .play-btn:hover::before {
+        opacity: 1;
+      }
+
+      .play-btn:hover::after {
+        width: 300px;
+        height: 300px;
+      }
+
+      .play-btn:active {
+        transform: translateY(-2px) scale(1.02);
+      }
+
+      /* Features */
+      .features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-top: 4rem;
+        max-width: 900px;
+        width: 100%;
+      }
+
+      .feature-card {
+        background: rgba(20, 20, 20, 0.6);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        padding: 2rem;
+        text-align: center;
+        transition: all 0.4s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .feature-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(14, 165, 233, 0.1),
+          transparent
+        );
+        opacity: 0;
+        transition: opacity 0.4s ease;
+      }
+
+      .feature-card:hover {
+        transform: translateY(-10px);
+        border-color: rgba(14, 165, 233, 0.3);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      }
+
+      .feature-card:hover::before {
+        opacity: 1;
+      }
+
+      .feature-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        display: block;
+      }
+
+      .feature-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #ffffff;
+      }
+
+      .feature-desc {
+        font-size: 0.95rem;
+        color: #94a3b8;
+        line-height: 1.6;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        body{
+          overflow-y: hidden;
+        }
+        .container {
+          padding: 1.5rem;
+        }
+
+        .logo-icon {
+          margin-bottom: 1rem;
+        }
+
+        .tagline {
+          margin-bottom: 2rem;
+        }
+
+        .board-preview-container {
+          margin: 2rem auto;
+        }
+
+        .chessboard-preview {
+          transform: rotateX(15deg) rotateZ(-3deg);
+          max-width: 400px;
+          margin-top: -15px;
+        }
+
+        .play-btn {
+          padding: 1rem 3rem;
+          width: 100%;
+          max-width: 300px;
+          margin-top: -22px;
+        }
+
+        .features {
+          grid-template-columns: 1fr;
+          margin-top: 3rem;
+          gap: 1rem;
+        }
+
+        .feature-card {
+          padding: 1.5rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .chessboard-preview {
+          max-width: 320px;
+        }
+
+        .square {
+          font-size: 1.2rem;
+        }
+      }
+
+      /* Accessibility */
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-pattern"></div>
+    <div class="bg-grid"></div>
+
+    <div class="container">
+      <div class="hero">
+        <div class="logo">
+          <span class="logo-icon">♔</span>
+          Chess Master
+        </div>
+        <p class="tagline">
+          Unleash your strategy. Outsmart your opponent. Dominate the board.
+        </p>
+
+        <div class="board-preview-container">
+          <div class="chessboard-preview" id="preview-board"></div>
+        </div>
+
+        <div class="cta-container">
+          <button class="play-btn" onclick="window.location.href='/game'">
+            Play Now
+          </button>
+        </div>
+
+        <!-- <div class="features">
+        <div class="feature-card">
+          <span class="feature-icon">⚡</span>
+          <h3 class="feature-title">Real-Time Play</h3>
+          <p class="feature-desc">Experience lightning-fast moves with instant board updates</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">🎯</span>
+          <h3 class="feature-title">AI Opponent</h3>
+          <p class="feature-desc">Challenge sophisticated AI with adjustable difficulty levels</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">📊</span>
+          <h3 class="feature-title">Track Progress</h3>
+          <p class="feature-desc">Analyze your games and improve your chess skills</p>
+        </div>
+      </div> -->
+      </div>
+    </div>
+
+    <script>
+      // Generate Chessboard Preview
+      const initialBoard = [
+        ["♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"],
+        ["♟", "♟", "♟", "♟", "♟", "♟", "♟", "♟"],
+        ["", "", "", "", "", "", "", ""],
+        ["", "", "", "", "", "", "", ""],
+        ["", "", "", "", "", "", "", ""],
+        ["", "", "", "", "", "", "", ""],
+        ["♙", "♙", "♙", "♙", "♙", "♙", "♙", "♙"],
+        ["♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"],
+      ];
+
+      const previewBoard = document.getElementById("preview-board");
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const square = document.createElement("div");
+          square.className = `square ${
+            (row + col) % 2 === 0 ? "light" : "dark"
+          }`;
+          square.textContent = initialBoard[row][col];
+          previewBoard.appendChild(square);
+        }
+      }
+
+      // Generate floating particles
+      for (let i = 0; i < 20; i++) {
+        const particle = document.createElement("div");
+        particle.className = "particle";
+        particle.style.left = Math.random() * 100 + "%";
+        particle.style.animationDelay = Math.random() * 20 + "s";
+        particle.style.animationDuration = 15 + Math.random() * 10 + "s";
+        document.body.appendChild(particle);
+      }
+    </script>
+  </body>
 </html>

@@ -71,6 +71,10 @@ const renderBoard = () => {
       });
       boardElement.appendChild(squareElement);
     });
+
+
+
+    
   });
 
   if (playerRole === "b") {
@@ -177,13 +181,13 @@ const updateTurnIndicator = () => {
     // Spectator view
     const current = currentTurn === "w" ? "White" : "Black";
     turnIndicator.textContent = `${current}'s Turn ♟`;
-    turnIndicator.style.color = "#facc15"; // gold for spectator
+    turnIndicator.style.backgroundColor  = "#facc15"; // gold for spectator
   } else if (playerRole === currentTurn) {
     turnIndicator.textContent = "Your Turn ♟";
-    turnIndicator.style.color = "#4ade80"; // green
+    turnIndicator.style.backgroundColor  = "#4ade80"; // green
   } else {
     turnIndicator.textContent = "Opponent's Turn ⏳";
-    turnIndicator.style.color = "#f87171"; // red
+    turnIndicator.style.backgroundColor  = "#f87171"; // red
   }
 };
 
