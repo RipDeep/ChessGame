@@ -194,7 +194,7 @@ socket.on("move", function (move) {
 const startTimer = () => {
   if (!gameActive) return;
   clearInterval(timerInterval);
-  timeLeft = 5;
+  timeLeft = 45;
   updateTimerDisplay();
 
   timerInterval = setInterval(() => {
