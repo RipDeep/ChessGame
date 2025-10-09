@@ -53,6 +53,55 @@ const renderBoard = () => {
         });
 
         squareElement.appendChild(pieceElement);
+
+        // --- Mobile touch ---
+        const isTouchDevice =
+          "ontouchstart" in window || navigator.maxTouchPoints > 0;
+        if (isTouchDevice) {
+          pieceElement.addEventListener("touchstart", (e) => {
+            if (!gameActive) return;
+            if (playerRole !== currentTurn || square.color !== playerRole)
+              return;
+
+            draggedPiece = pieceElement;
+            sourceSquare = { row: rowindex, col: squareindex };
+
+            draggedPiece.style.position = "absolute";
+            draggedPiece.style.zIndex = 1000;
+          });
+
+          pieceElement.addEventListener("touchmove", (e) => {
+            if (!draggedPiece) return;
+            const touch = e.touches[0];
+            draggedPiece.style.left =
+              touch.clientX - draggedPiece.offsetWidth / 2 + "px";
+            draggedPiece.style.top =
+              touch.clientY - draggedPiece.offsetHeight / 2 + "px";
+          });
+
+          pieceElement.addEventListener("touchend", (e) => {
+            if (!draggedPiece) return;
+            const touch = e.changedTouches[0];
+            const targetElem = document.elementFromPoint(
+              touch.clientX,
+              touch.clientY
+            );
+
+            if (targetElem && targetElem.classList.contains("square")) {
+              const targetSource = {
+                row: parseInt(targetElem.dataset.row),
+                col: parseInt(targetElem.dataset.col),
+              };
+              handleMove(sourceSquare, targetSource);
+            }
+
+            // Reset piece position
+            draggedPiece.style.position = "";
+            draggedPiece.style.zIndex = "";
+            draggedPiece = null;
+            sourceSquare = null;
+          });
+        }
       }
 
       squareElement.addEventListener("dragover", (e) => {
@@ -71,10 +120,6 @@ const renderBoard = () => {
       });
       boardElement.appendChild(squareElement);
     });
-
-
-
-    
   });
 
   if (playerRole === "b") {
@@ -181,13 +226,13 @@ const updateTurnIndicator = () => {
     // Spectator view
     const current = currentTurn === "w" ? "White" : "Black";
     turnIndicator.textContent = `${current}'s Turn ♟`;
-    turnIndicator.style.backgroundColor  = "#facc15"; // gold for spectator
+    turnIndicator.style.backgroundColor = "#facc15"; // gold for spectator
   } else if (playerRole === currentTurn) {
     turnIndicator.textContent = "Your Turn ♟";
-    turnIndicator.style.backgroundColor  = "#4ade80"; // green
+    turnIndicator.style.backgroundColor = "#4ade80"; // green
   } else {
     turnIndicator.textContent = "Opponent's Turn ⏳";
-    turnIndicator.style.backgroundColor  = "#f87171"; // red
+    turnIndicator.style.backgroundColor = "#f87171"; // red
   }
 };
 
