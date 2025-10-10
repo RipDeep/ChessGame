@@ -27,6 +27,9 @@ app.get("/game", (req, res) => {
   res.render("game", { title: "Chess Game" });
 });
 
+
+
+
 const checkGameReady = () => {
   if (players.white && players.black) {
     io.emit("gameReady"); // both players connected
@@ -35,95 +38,82 @@ const checkGameReady = () => {
   }
 };
 
-io.on("connection", function (uniquesocket) {
-  console.log("Connected");
 
-  if (!players.white) {
-    players.white = uniquesocket.id;
-    uniquesocket.emit("playerRole", "w");
-  } else if (!players.black) {
-    players.black = uniquesocket.id;
-    uniquesocket.emit("playerRole", "b");
-  } else {
-    uniquesocket.emit("spectatorRole");
+
+
+const games = {};
+let roomCounter = 1;
+
+io.on("connection", (socket) => {
+  console.log("Connected:", socket.id);
+
+  // Find a game with only 1 player
+  let assignedRoom = null;
+  for (let roomId in games) {
+    const game = games[roomId];
+    if (Object.keys(game.players).length === 1) {
+      assignedRoom = roomId;
+      break;
+    }
   }
 
-  checkGameReady();
+  // If no room, create new
+  if (!assignedRoom) {
+    assignedRoom = `room${roomCounter++}`;
+    games[assignedRoom] = {
+      players: {},
+      chess: new Chess(),
+      currentPlayer: "w",
+    };
+  }
 
-  uniquesocket.on("disconnect", function () {
-    console.log("Player disconnected:", uniquesocket.id);
+  const game = games[assignedRoom];
 
-    let leavingPlayer = null;
-    if (uniquesocket.id === players.white) leavingPlayer = "w";
-    if (uniquesocket.id === players.black) leavingPlayer = "b";
+  // Assign role
+  let role = !game.players.w ? "w" : "b";
+  game.players[role] = socket.id;
 
-    // Remove leaving player
-    if (leavingPlayer === "w") delete players.white;
-    if (leavingPlayer === "b") delete players.black;
+  socket.join(assignedRoom);
+  socket.emit("playerRole", role);
 
-    // If opponent exists, declare them winner
+  if (Object.keys(game.players).length === 2) {
+    io.to(assignedRoom).emit("gameReady");
+  } else {
+    socket.emit("gameNotReady");
+  }
 
-    if (leavingPlayer) {
-      let winner = leavingPlayer === "w" ? "b" : "w";
-      io.emit("gameOver", { winner, reason: "disconnect" });
-      resetGame();
-    }
-
-    checkGameReady();
-  });
-
-  const resetGame = () => {
-  chess.reset();
-  currentPlayer = "w";
-  io.emit("boardState", chess.fen());
-  io.emit("switchTurn", currentPlayer);
-};
-
-
-
-
-  uniquesocket.on("move", (move) => {
-    try {
-      if (chess.turn() === "w" && uniquesocket.id !== players.white) {
-        return;
-      }
-      if (chess.turn() === "b" && uniquesocket.id !== players.black) {
-        return;
-      }
-
-      const result = chess.move(move);
-      if (result) {
-        currentPlayer = chess.turn();
-        io.emit("move", move);
-        io.emit("boardState", chess.fen());
-        io.emit("switchTurn", currentPlayer);
-      } else {
-        console.log("Invalid move: ", move);
-        uniquesocket.emit("invalidMove", move);
-      }
-    } catch (err) {
-      console.log("Error: ", err);
-      uniquesocket.emit("Invalid move: ", move);
+  socket.on("move", (move) => {
+    if (game.chess.turn() !== role[0]) return;
+    const result = game.chess.move(move);
+    if (result) {
+      game.currentPlayer = game.chess.turn();
+      io.to(assignedRoom).emit("move", move);
+      io.to(assignedRoom).emit("boardState", game.chess.fen());
+      io.to(assignedRoom).emit("switchTurn", game.currentPlayer);
+    } else {
+      socket.emit("invalidMove", move);
     }
   });
 
-  uniquesocket.on("timeUp", ({ player }) => {
-    try {
-      if (player !== currentPlayer) return;
+  socket.on("timeUp", ({ player }) => {
+    if (player !== game.currentPlayer) return;
 
-      // Switch turn
-      currentPlayer = currentPlayer === "w" ? "b" : "w";
+    game.currentPlayer = game.currentPlayer === "w" ? "b" : "w";
+    const parts = game.chess.fen().split(" ");
+    parts[1] = game.currentPlayer;
+    game.chess.load(parts.join(" "));
 
-      const parts = chess.fen().split(" ");
-      parts[1] = currentPlayer;
-      const newFen = parts.join(" ");
-      chess.load(newFen);
+    io.to(assignedRoom).emit("boardState", game.chess.fen());
+    io.to(assignedRoom).emit("switchTurn", game.currentPlayer);
+  });
 
-      io.emit("boardState", chess.fen());
-      io.emit("switchTurn", currentPlayer);
-    } catch (err) {
-      console.log("Error: ", err);
+  socket.on("disconnect", () => {
+    const opponentRole = role === "w" ? "b" : "w";
+    if (game.players[opponentRole]) {
+      io.to(assignedRoom).emit("gameOver", { winner: opponentRole, reason: "disconnect" });
     }
+    delete game.players[role];
+    if (Object.keys(game.players).length === 0) delete games[assignedRoom];
   });
 });
 

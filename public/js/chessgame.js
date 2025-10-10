@@ -1,6 +1,12 @@
 const socket = io();
 const chess = new Chess();
 
+const moveSound = new Audio("/sounds/move.mp3");
+const captureSound = new Audio("/sounds/capture.mp3");
+const checkSound = new Audio("/sounds/check.mp3");
+const checkmateSound = new Audio("/sounds/checkmate.mp3");
+const wrongSound = new Audio("/sounds/wrong.mp3");
+
 const boardElement = document.querySelector(".chessboard");
 let draggedPiece = null;
 let sourceSquare = null;
@@ -34,6 +40,32 @@ const renderBoard = () => {
           "piece",
           square.color === "w" ? "white" : "black"
         );
+
+        // Highlight king in check
+        const kingInCheck = chess.in_check();
+        if (kingInCheck) {
+          const kingSquare = chess
+            .board()
+            .flatMap((row, r) => row.map((sq, c) => ({ sq, r, c })))
+            .find(
+              ({ sq }) => sq && sq.type === "k" && sq.color === chess.turn()
+            );
+
+          if (kingSquare) {
+            const { r, c } = kingSquare;
+            const squareEl = boardElement.querySelector(
+              `.square[data-row='${r}'][data-col='${c}']`
+            );
+            if (squareEl) {
+              squareEl.classList.add("check");
+
+              // Remove the class after animation ends
+              setTimeout(() => {
+                squareEl.classList.remove("check");
+              }, 500);
+            }
+          }
+        }
 
         pieceElement.innerText = getPieceUnicode(square);
         pieceElement.draggable = gameActive && playerRole === currentTurn;
@@ -120,8 +152,6 @@ const renderBoard = () => {
         }
       });
 
-    
-
       // --- Click-to-select and click-to-move ---
       squareElement.addEventListener("click", () => {
         if (!gameActive) return;
@@ -170,14 +200,45 @@ const renderBoard = () => {
 };
 const handleMove = (source, target) => {
   if (!gameActive) return;
-  const move = {
-    from: `${String.fromCharCode(97 + source.col)}${8 - source.row}`,
-    to: `${String.fromCharCode(97 + target.col)}${8 - target.row}`,
-    promotion: "q",
-  };
+
+  const from = `${String.fromCharCode(97 + source.col)}${8 - source.row}`;
+  const to = `${String.fromCharCode(97 + target.col)}${8 - target.row}`;
+
+  const piece = chess.get(from); // get the piece at source
+  const move = { from, to };
+
+  // Only add promotion if pawn reaches last rank
+  if (piece && piece.type === "p") {
+    if (
+      (piece.color === "w" && to[1] === "8") ||
+      (piece.color === "b" && to[1] === "1")
+    ) {
+      move.promotion = "q"; // default to queen
+    }
+  }
+
+  // Check if move is legal before sending to server
+  const legalMoves = chess.moves({ square: from, verbose: true });
+  const isLegal = legalMoves.some((m) => m.to === to);
+
+  if (!isLegal) {
+    wrongSound.play(); // play wrong move sound
+    // Shake the piece
+    const pieceEl =
+      document.querySelector(`.piece[draggable][style*="left"]`) ||
+      document.querySelector(`.piece:contains('${getPieceUnicode(piece)}')`);
+
+    if (pieceEl) {
+      pieceEl.classList.add("shake");
+      setTimeout(() => pieceEl.classList.remove("shake"), 500);
+    }
+
+    return; // do not send illegal move
+  }
 
   socket.emit("move", move);
 };
+
 const getPieceUnicode = (piece) => {
   const unicodePieces = {
     p: "♟", // black pawn
@@ -225,6 +286,29 @@ socket.on("gameNotReady", () => {
 });
 
 socket.on("move", function (move) {
+  const prevFen = chess.fen(); // save FEN before move
+  const result = chess.move(move);
+
+  if (!result) return;
+
+  // Check if a piece was captured
+  if (result.captured) {
+    captureSound.play();
+  } else {
+    moveSound.play();
+  }
+
+  if (chess.in_checkmate()) {
+    checkmateSound.play();
+    const winner = chess.turn() === "w" ? "b" : "w"; // the player who made the last move
+    const loser = chess.turn(); // the player who is now in checkmate
+
+    stopGame(winner, "Checkmate");
+    return;
+  } else if (chess.in_check()) {
+    checkSound.play();
+  }
+
   chess.move(move);
   //   switchTurn(); // sync turn after receiving move
   renderBoard();
@@ -331,6 +415,10 @@ socket.on("disconnect", () => {
   }
 });
 
+
+
+
+
 const stopGame = (winner, reason) => {
   gameActive = false;
   clearInterval(timerInterval); // stop timer
@@ -354,6 +442,11 @@ const stopGame = (winner, reason) => {
   document.getElementById("go-home-btn").addEventListener("click", () => {
     window.location.href = "/";
   });
+
+   setTimeout(() => {
+    socket.disconnect();
+    console.log("Socket disconnected automatically after game over.");
+  }, 700)
 };
 
 // Listen to server gameOver
