@@ -5,6 +5,7 @@ const boardElement = document.querySelector(".chessboard");
 let draggedPiece = null;
 let sourceSquare = null;
 let playerRole = null;
+let selectedSquare = null;
 let gameActive = false;
 
 let currentTurn = "w"; // chess.js starts with white
@@ -118,6 +119,45 @@ const renderBoard = () => {
           handleMove(sourceSquare, targetSource);
         }
       });
+
+    
+
+      // --- Click-to-select and click-to-move ---
+      squareElement.addEventListener("click", () => {
+        if (!gameActive) return;
+
+        const row = parseInt(squareElement.dataset.row);
+        const col = parseInt(squareElement.dataset.col);
+        const clickedPiece = chess.board()[row][col];
+
+        // If no piece selected yet
+        if (!selectedSquare) {
+          // Only allow selecting own piece
+          if (
+            clickedPiece &&
+            clickedPiece.color === playerRole &&
+            playerRole === currentTurn
+          ) {
+            selectedSquare = { row, col };
+            squareElement.classList.add("selected"); // highlight
+          }
+          return;
+        }
+
+        // If same square clicked again → deselect
+        if (selectedSquare.row === row && selectedSquare.col === col) {
+          selectedSquare = null;
+          renderBoard(); // remove highlight
+          return;
+        }
+
+        // Otherwise, try to move
+        const targetSquare = { row, col };
+        handleMove(selectedSquare, targetSquare);
+        selectedSquare = null;
+        renderBoard();
+      });
+
       boardElement.appendChild(squareElement);
     });
   });
