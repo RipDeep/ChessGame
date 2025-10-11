@@ -78,9 +78,42 @@ io.on("connection", (socket) => {
 
   if (Object.keys(game.players).length === 2) {
     io.to(assignedRoom).emit("gameReady");
+
+
+
+    io.to(assignedRoom).emit("boardState", game.chess.fen());
+    io.to(assignedRoom).emit("switchTurn", "w");
+
+
+
+
   } else {
     socket.emit("gameNotReady");
   }
+
+
+  socket.on("gameNotReady", () => {
+  gameActive = false;
+  turnIndicator.textContent = "⏳ Waiting for opponent...";
+  turnIndicator.style.backgroundColor = "#60a5fa"; // blue
+  renderBoard();
+});
+
+socket.on("gameReady", () => {
+  turnIndicator.textContent = "Opponent joined! Starting game...";
+  turnIndicator.style.backgroundColor = "#facc15"; // gold
+
+  setTimeout(() => {
+    gameActive = true;
+    renderBoard();
+    startTimer(); // start timer automatically
+    updateTurnIndicator();
+  }, 2000); // 2s delay for effect
+});
+
+
+
+
 
   socket.on("move", (move) => {
     if (game.chess.turn() !== role[0]) return;

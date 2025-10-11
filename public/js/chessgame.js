@@ -6,6 +6,7 @@ const captureSound = new Audio("/sounds/capture.mp3");
 const checkSound = new Audio("/sounds/check.mp3");
 const checkmateSound = new Audio("/sounds/checkmate.mp3");
 const wrongSound = new Audio("/sounds/wrong.mp3");
+const startGameSound = new Audio("/sounds/start.mp3");
 
 const boardElement = document.querySelector(".chessboard");
 let draggedPiece = null;
@@ -17,6 +18,8 @@ let gameActive = false;
 let currentTurn = "w"; // chess.js starts with white
 let timerInterval = null;
 let timeLeft = 45;
+let highlightedTargets = []; // array of {row, col} for legal-move highlights
+
 const timerElement = document.getElementById("timer");
 const turnIndicator = document.getElementById("turn-indicator");
 
@@ -78,11 +81,20 @@ const renderBoard = () => {
           }
           draggedPiece = pieceElement;
           sourceSquare = { row: rowindex, col: squareindex };
+
+          const from = `${String.fromCharCode(97 + squareindex)}${
+            8 - rowindex
+          }`;
+          highlightLegalMoves(from);
+
           e.dataTransfer.setData("text/plain", "");
         });
         pieceElement.addEventListener("dragend", (e) => {
           draggedPiece = null;
           sourceSquare = null;
+          document
+            .querySelectorAll(".square.highlight")
+            .forEach((sq) => sq.classList.remove("highlight"));
         });
 
         squareElement.appendChild(pieceElement);
@@ -170,6 +182,8 @@ const renderBoard = () => {
           ) {
             selectedSquare = { row, col };
             squareElement.classList.add("selected"); // highlight
+            const from = `${String.fromCharCode(97 + col)}${8 - row}`;
+            highlightLegalMoves(from);
           }
           return;
         }
@@ -198,6 +212,28 @@ const renderBoard = () => {
     boardElement.classList.remove("flipped");
   }
 };
+
+// Highlight all possible legal moves for a selected piece
+const highlightLegalMoves = (fromSquare) => {
+  // Clear previous highlights
+  document
+    .querySelectorAll(".square.highlight")
+    .forEach((sq) => sq.classList.remove("highlight"));
+
+  const legalMoves = chess.moves({ square: fromSquare, verbose: true });
+  legalMoves.forEach((move) => {
+    const to = move.to;
+    const col = to.charCodeAt(0) - 97;
+    const row = 8 - parseInt(to[1]);
+    const targetSquare = document.querySelector(
+      `.square[data-row='${row}'][data-col='${col}']`
+    );
+    if (targetSquare) {
+      targetSquare.classList.add("highlight");
+    }
+  });
+};
+
 const handleMove = (source, target) => {
   if (!gameActive) return;
 
@@ -224,13 +260,41 @@ const handleMove = (source, target) => {
   if (!isLegal) {
     wrongSound.play(); // play wrong move sound
     // Shake the piece
+
+    document.querySelectorAll(".square").forEach((sq) => {
+      sq.classList.remove("highlight");
+      sq.classList.remove("selected");
+    });
+
+    selectedSquare = null;
     const pieceEl =
       document.querySelector(`.piece[draggable][style*="left"]`) ||
       document.querySelector(`.piece:contains('${getPieceUnicode(piece)}')`);
 
     if (pieceEl) {
       pieceEl.classList.add("shake");
-      setTimeout(() => pieceEl.classList.remove("shake"), 500);
+      setTimeout(() => {
+        pieceEl.classList.remove("shake");
+      }, 500);
+    }
+
+    // after creating squareElement and setting dataset...
+    // apply 'selected' class if this square matches selectedSquare
+    if (
+      selectedSquare &&
+      selectedSquare.row === rowindex &&
+      selectedSquare.col === squareindex
+    ) {
+      squareElement.classList.add("selected");
+    }
+
+    // apply highlight if this square is in highlightedTargets
+    if (
+      highlightedTargets.some(
+        (h) => h.row === rowindex && h.col === squareindex
+      )
+    ) {
+      squareElement.classList.add("highlight");
     }
 
     return; // do not send illegal move
@@ -276,12 +340,25 @@ socket.on("boardState", function (fen) {
 });
 
 socket.on("gameReady", () => {
-  gameActive = true;
-  renderBoard(); // enable dragging
+  // gameActive = true;
+
+  startGameSound.play();
+  document.querySelector("#turn-indicator").textContent =
+    "Opponent joined! Starting...";
+  setTimeout(() => {
+    gameActive = true;
+    renderBoard();
+    startTimer(); // automatically start timer
+    updateTurnIndicator();
+
+    timerElement.classList.remove("hidden");
+    setTimeout(() => overlay.classList.add("hidden"), 5000);
+  }, 3000);
 });
 
 socket.on("gameNotReady", () => {
   gameActive = false;
+  overlay.classList.remove("hidden");
   renderBoard(); // disable dragging
 });
 
@@ -415,10 +492,6 @@ socket.on("disconnect", () => {
   }
 });
 
-
-
-
-
 const stopGame = (winner, reason) => {
   gameActive = false;
   clearInterval(timerInterval); // stop timer
@@ -443,16 +516,28 @@ const stopGame = (winner, reason) => {
     window.location.href = "/";
   });
 
-   setTimeout(() => {
+  setTimeout(() => {
     socket.disconnect();
     console.log("Socket disconnected automatically after game over.");
-  }, 700)
+  }, 700);
 };
 
 // Listen to server gameOver
 socket.on("gameOver", ({ winner, reason }) => {
   stopGame(winner, reason);
 });
+
+const overlay = document.getElementById("waiting-overlay");
+
+// socket.on("gameNotReady", () => {
+//   overlay.classList.remove("hidden");
+// });
+
+// socket.on("gameReady", () => {
+//   timerElement.classList.remove("hidden");
+//   overlay.querySelector(".overlay-content").textContent = "Opponent joined! Starting...";
+//   setTimeout(() => overlay.classList.add("hidden"), 5000);
+// });
 
 const resetGame = () => {
   chess.reset();
