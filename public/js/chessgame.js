@@ -343,7 +343,7 @@ socket.on("gameReady", () => {
   // gameActive = true;
 
   startGameSound.play();
-  document.querySelector("#turn-indicator").textContent =
+  document.querySelector("#turn-indicator").innerText =
     "Opponent joined! Starting...";
   setTimeout(() => {
     gameActive = true;
@@ -353,7 +353,7 @@ socket.on("gameReady", () => {
 
     timerElement.classList.remove("hidden");
     setTimeout(() => overlay.classList.add("hidden"), 5000);
-  }, 3000);
+  }, 2100);
 });
 
 socket.on("gameNotReady", () => {
@@ -528,17 +528,6 @@ socket.on("gameOver", ({ winner, reason }) => {
 });
 
 const overlay = document.getElementById("waiting-overlay");
-
-// socket.on("gameNotReady", () => {
-//   overlay.classList.remove("hidden");
-// });
-
-// socket.on("gameReady", () => {
-//   timerElement.classList.remove("hidden");
-//   overlay.querySelector(".overlay-content").textContent = "Opponent joined! Starting...";
-//   setTimeout(() => overlay.classList.add("hidden"), 5000);
-// });
-
 const resetGame = () => {
   chess.reset();
   currentPlayer = "w";

@@ -27,6 +27,11 @@ app.get("/game", (req, res) => {
   res.render("game", { title: "Chess Game" });
 });
 
+app.get("/game-ai", (req, res) => {
+  res.render("game-ai", { title: "Play vs Computer" });
+});
+
+
 
 
 
