@@ -859,6 +859,7 @@ button {
   position: fixed;
   bottom: 2rem;
   left: 50%;
+  /* width: 65vw; */
   transform: translateX(-50%) translateY(100px);
   background: #4ade80;
   color: #fff;
@@ -877,6 +878,19 @@ button {
 .toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+
+@media screen and (max-width: 476px) {
+  .link-container{
+    flex-direction: column;
+  }
+
+  .toast{
+    font-size: 0.85rem;
+    width: 62vw;
+
+  }
 }
 
 
