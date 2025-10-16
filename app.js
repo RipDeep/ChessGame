@@ -120,9 +120,7 @@ io.on("connection", (socket) => {
       io.to(roomId).emit("boardState", chess.fen());
       io.to(roomId).emit("switchTurn", "w");
 
-      console.log(
-        `Started game ${roomId} between ${player1.id} (w) and ${player2.id} (b)`
-      );
+      
     }
   }
 
