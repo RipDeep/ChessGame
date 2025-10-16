@@ -47,18 +47,15 @@ app.get("/game/:roomId", (req, res) => {
 // const games = {};
 let roomCounter = 1;
 
-
 let matchmakingQueue = []; // array of socket IDs waiting for a match
 let gameCounter = 1;
 const games = {}; // store active games
 
-
-
 io.on("connection", (socket) => {
-// Add the player to the matchmaking queue
+  // Add the player to the matchmaking queue
   matchmakingQueue.push(socket);
 
-    tryToStartGame();
+  tryToStartGame();
 
   // Find a game with only 1 player
   // let assignedRoom = null;
@@ -89,59 +86,54 @@ io.on("connection", (socket) => {
   // socket.join(assignedRoom);
   // socket.emit("playerRole", role);
 
-
-
-
   function tryToStartGame() {
-  while (matchmakingQueue.length >= 2) {
-    const player1 = matchmakingQueue.shift();
-    const player2 = matchmakingQueue.shift();
+    while (matchmakingQueue.length >= 2) {
+      const player1 = matchmakingQueue.shift();
+      const player2 = matchmakingQueue.shift();
 
-    const roomId = `game${gameCounter++}`;
-    const chess = new Chess();
+      const roomId = `game${gameCounter++}`;
+      const chess = new Chess();
 
-    games[roomId] = {
-      chess,
-      currentPlayer: "w",
-      players: {
-        w: player1.id,
-        b: player2.id,
-      },
-    };
+      games[roomId] = {
+        chess,
+        currentPlayer: "w",
+        players: {
+          w: player1.id,
+          b: player2.id,
+        },
+      };
 
-    player1.join(roomId);
-    player2.join(roomId);
+      player1.join(roomId);
+      player2.join(roomId);
 
-    player1.roomId = roomId;
-    player2.roomId = roomId;
+      player1.roomId = roomId;
+      player2.roomId = roomId;
 
-    player1.role = "w";
-    player2.role = "b";
+      player1.role = "w";
+      player2.role = "b";
 
-    // Notify players
-    player1.emit("playerRole", "w");
-    player2.emit("playerRole", "b");
+      // Notify players
+      player1.emit("playerRole", "w");
+      player2.emit("playerRole", "b");
 
-    io.to(roomId).emit("gameReady");
-    io.to(roomId).emit("boardState", chess.fen());
-    io.to(roomId).emit("switchTurn", "w");
+      io.to(roomId).emit("gameReady");
+      io.to(roomId).emit("boardState", chess.fen());
+      io.to(roomId).emit("switchTurn", "w");
 
-    console.log(`Started game ${roomId} between ${player1.id} (w) and ${player2.id} (b)`);
+      console.log(
+        `Started game ${roomId} between ${player1.id} (w) and ${player2.id} (b)`
+      );
+    }
   }
-}
-
-
-
-
-
 
   socket.on("joinFriendRoom", ({ roomId }) => {
     if (!rooms[roomId]) {
       rooms[roomId] = {
-        players: [],
         chess: new Chess(),
+        players: [], // {id, role}
         currentTurn: "w",
         timeoutCount: { w: 0, b: 0 },
+        gameOver: false,
       };
     }
 
@@ -159,55 +151,73 @@ io.on("connection", (socket) => {
     socket.role = role;
 
     socket.emit("playerRole", role);
-    if (role === "b") socket.to(roomId).emit("friendJoined"); // notify host
-
-    
+    if (role === "b") {
+      // Notify host that opponent joined
+      socket.to(roomId).emit("friendJoined");
+      // Start game
+      io.to(roomId).emit("gameReady");
+      io.to(roomId).emit("boardState", room.chess.fen());
+    }
   });
 
   socket.on("friendMove", ({ roomId, from, to, promotion }) => {
-    const game = rooms[roomId];
-    if (!game) return;
+    const room = rooms[roomId];
+    if (!room || room.gameOver) return;
 
-    // 🛡️ Prevent out-of-turn move
-    const playerRole = game.players.find((p) => p.id === socket.id)?.role;
-    if (playerRole !== game.chess.turn()) {
-      console.warn(`⚠️ ${playerRole} tried to move out of turn in ${roomId}`);
-      socket.emit("boardState", game.chess.fen());
+    // Check turn
+    if (socket.role !== room.currentTurn) {
+      socket.emit("boardState", room.chess.fen());
       return;
     }
 
     const moveObj = { from, to, promotion };
-    const result = game.chess.move(moveObj);
+    const result = room.chess.move(moveObj);
 
     if (!result) {
-      console.warn(`❌ Invalid move attempt in room ${roomId}:`, moveObj);
-      socket.emit("boardState", game.chess.fen());
+      socket.emit("boardState", room.chess.fen());
       return;
     }
 
-   
-    io.to(roomId).emit("friendMove", moveObj);
-    io.to(roomId).emit("boardState", game.chess.fen());
+    // Reset timeout count for mover
+    room.timeoutCount[result.color] = 0;
+
+    // Update turn
+    room.currentTurn = room.chess.turn();
+
+    // Broadcast move and board
+    io.to(roomId).emit("friendMove", {
+      from,
+      to,
+      promotion,
+      color: result.color,
+    });
+    io.to(roomId).emit("boardState", room.chess.fen());
+    io.to(roomId).emit("switchTurn", room.currentTurn);
+
+    // Check for checkmate
+    if (room.chess.isCheckmate()) {
+      const winner = result.color; // the one who delivered checkmate
+      io.to(roomId).emit("gameOver", { winner, reason: "Checkmate" });
+      room.gameOver = true;
+    }
   });
 
-  socket.on("playerSkippedTurn", ({ roomId, skippedTurn, nextTurn }) => {
-    if (!rooms[roomId]) return;
-    const game = rooms[roomId];
+  socket.on("playerSkippedTurn", ({ roomId, nextTurn }) => {
+    const room = rooms[roomId];
+    if (!room || room.gameOver) return;
 
-    game.currentTurn = nextTurn;
+    room.currentTurn = nextTurn;
 
-    // ✅ Flip the turn inside the actual chess engine
-    const parts = game.chess.fen().split(" ");
-    parts[1] = nextTurn; // 'w' or 'b'
-    game.chess.load(parts.join(" "));
+    // Update chess engine active color
+    const parts = room.chess.fen().split(" ");
+    parts[1] = nextTurn;
+    room.chess.load(parts.join(" "));
 
-
-
-    // ✅ Send update to all players
-    io.to(roomId).emit("playerSkippedTurn", { skippedTurn, nextTurn });
-
-    // ✅ Sync all clients to the correct FEN
-    io.to(roomId).emit("boardState", game.chess.fen());
+    io.to(roomId).emit("playerSkippedTurn", {
+      skippedTurn: socket.role,
+      nextTurn,
+    });
+    io.to(roomId).emit("boardState", room.chess.fen());
   });
 
   socket.on("startGame", ({ roomId }) => {
@@ -222,8 +232,6 @@ io.on("connection", (socket) => {
 
   socket.on("gameOver", ({ roomId, winner, reason }) => {
     if (!rooms[roomId]) return;
-
-    
 
     io.to(roomId).emit("gameOver", { winner, reason });
 
@@ -255,15 +263,16 @@ io.on("connection", (socket) => {
     renderBoard();
   });
 
-
-socket.on("gameOverForGame", ({roomId, winner, reason }) => {
-  // io.emit("gameOver", { winner, reason });
-
-  io.to(roomId).emit("gameOver", { winner, reason });
-  
-});
-
-  
+  socket.on("gameOverForGame", ({ roomId, winner, reason }) => {
+    // io.emit("gameOver", { winner, reason });
+const room = rooms[roomId];
+    io.to(roomId).emit("gameOver", { winner, reason });
+    if (room) {
+      
+      room.gameOver = true;
+      setTimeout(() => delete rooms[roomId], 5000);
+    }
+  });
 
   socket.on("gameReady", () => {
     turnIndicator.textContent = "Opponent joined! Starting game...";
@@ -276,54 +285,53 @@ socket.on("gameOverForGame", ({roomId, winner, reason }) => {
       updateTurnIndicator();
     }, 2000); // 2s delay for effect
   });
-socket.on("move", (move) => {
-  const roomId = socket.roomId;
-  if (!roomId) return; // socket not in a game
+  socket.on("move", (move) => {
+    const roomId = socket.roomId;
+    if (!roomId) return; // socket not in a game
 
-  const game = games[roomId];
-  if (!game) return; // game not found (maybe ended)
+    const game = games[roomId];
+    if (!game) return; // game not found (maybe ended)
 
-  // Check if it's the player's turn
-  if (game.currentPlayer !== socket.role) {
-    socket.emit("invalidMove", move);
-    return;
-  }
+    // Check if it's the player's turn
+    if (game.currentPlayer !== socket.role) {
+      socket.emit("invalidMove", move);
+      return;
+    }
 
-  // Attempt the move
-  const result = game.chess.move(move);
-  if (!result) {
-    socket.emit("invalidMove", move);
-    return;
-  }
+    // Attempt the move
+    const result = game.chess.move(move);
+    if (!result) {
+      socket.emit("invalidMove", move);
+      return;
+    }
 
-  // Update whose turn it is
-  game.currentPlayer = game.chess.turn(); // chess.js auto switches turn
+    // Update whose turn it is
+    game.currentPlayer = game.chess.turn(); // chess.js auto switches turn
 
-  // Broadcast the move and updated board to both players
-  io.to(roomId).emit("move", move);
-  io.to(roomId).emit("boardState", game.chess.fen());
-  io.to(roomId).emit("switchTurn", game.currentPlayer);
+    // Broadcast the move and updated board to both players
+    io.to(roomId).emit("move", move);
+    io.to(roomId).emit("boardState", game.chess.fen());
+    io.to(roomId).emit("switchTurn", game.currentPlayer);
 
-  // Check for checkmate
-if (game.chess.isCheckmate()) {  // ✅ correct camelCase
-  io.to(roomId).emit("gameOver", {
-    winner: socket.role,
-    reason: "Checkmate",
+    // Check for checkmate
+    if (game.chess.isCheckmate()) {
+      // ✅ correct camelCase
+      io.to(roomId).emit("gameOver", {
+        winner: socket.role,
+        reason: "Checkmate",
+      });
+      cleanupRoom(roomId);
+    }
+
+    // Optional: handle draw / stalemate
+    if (game.chess.isDraw() || game.chess.isStalemate()) {
+      io.to(roomId).emit("gameOver", {
+        winner: null,
+        reason: "Draw",
+      });
+      cleanupRoom(roomId);
+    }
   });
-  cleanupRoom(roomId);
-}
-
-// Optional: handle draw / stalemate
-if (game.chess.isDraw() || game.chess.isStalemate()) {
-  io.to(roomId).emit("gameOver", {
-    winner: null,
-    reason: "Draw",
-  });
-  cleanupRoom(roomId);
-}
-
-});
-
 
   socket.on("timeUp", ({ player }) => {
     if (player !== game.currentPlayer) return;
@@ -337,35 +345,19 @@ if (game.chess.isDraw() || game.chess.isStalemate()) {
     io.to(assignedRoom).emit("switchTurn", game.currentPlayer);
   });
 
-socket.on("disconnect", () => {
-  // Remove from matchmaking queue
-  matchmakingQueue = matchmakingQueue.filter((s) => s.id !== socket.id);
+  socket.on("disconnect", () => {
+    // Remove from matchmaking queue
+    matchmakingQueue = matchmakingQueue.filter((s) => s.id !== socket.id);
 
-  const roomId = socket.roomId;
-  if (!roomId) return;
+    const roomId = socket.roomId;
+    if (!roomId) return;
 
-  // --- Handle random/matchmaking games ---
-  if (games[roomId]) {
-    const game = games[roomId];
-    const opponentRole = socket.role === "w" ? "b" : "w";
 
-    io.to(roomId).emit("gameOver", {
-      winner: opponentRole,
-      reason: "Opponent disconnected",
-    });
-
-    cleanupRoom(roomId); // removes the game from games[]
-    return;
-  }
-
-  // --- Handle friend rooms ---
-  if (rooms[roomId]) {
     const room = rooms[roomId];
-    const player = room.players.find((p) => p.id === socket.id);
-    if (player) {
-      // Remove the player
-      room.players = room.players.filter((p) => p.id !== socket.id);
-    }
+
+    if (room) {
+      // Remove player
+    room.players = room.players.filter(p => p.id !== socket.id);
 
     if (room.gameOver) return;
 
@@ -373,23 +365,66 @@ socket.on("disconnect", () => {
       const opponent = room.players[0];
       io.to(opponent.id).emit("gameOver", {
         winner: opponent.role,
-        reason: "Opponent disconnected",
+        reason: "Opponent disconnected"
       });
       room.gameOver = true;
 
-      // Optional cleanup
+      // Cleanup
       setTimeout(() => {
         const client = io.sockets.sockets.get(opponent.id);
         if (client) client.disconnect(true);
         delete rooms[roomId];
       }, 5000);
-    } else {
-      // No players left, just delete the room
+    } else if (room.players.length === 0) {
       delete rooms[roomId];
     }
-  }
-});
+    }
 
+    // --- Handle random/matchmaking games ---
+    if (games[roomId]) {
+      const game = games[roomId];
+      const opponentRole = socket.role === "w" ? "b" : "w";
+
+      io.to(roomId).emit("gameOver", {
+        winner: opponentRole,
+        reason: "Opponent disconnected",
+      });
+
+      cleanupRoom(roomId); // removes the game from games[]
+      return;
+    }
+
+    // --- Handle friend rooms ---
+    if (rooms[roomId]) {
+      const room = rooms[roomId];
+      const player = room.players.find((p) => p.id === socket.id);
+      if (player) {
+        // Remove the player
+        room.players = room.players.filter((p) => p.id !== socket.id);
+      }
+
+      if (room.gameOver) return;
+
+      if (room.players.length === 1) {
+        const opponent = room.players[0];
+        io.to(opponent.id).emit("gameOver", {
+          winner: opponent.role,
+          reason: "Opponent disconnected",
+        });
+        room.gameOver = true;
+
+        // Optional cleanup
+        setTimeout(() => {
+          const client = io.sockets.sockets.get(opponent.id);
+          if (client) client.disconnect(true);
+          delete rooms[roomId];
+        }, 5000);
+      } else {
+        // No players left, just delete the room
+        delete rooms[roomId];
+      }
+    }
+  });
 
   function cleanupRoom(roomId) {
     const game = games[roomId];

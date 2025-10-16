@@ -641,7 +641,7 @@ socket.on("playerSkippedTurn", ({ skippedTurn, nextTurn }) => {
   timeLeft = 45;
   updateTimerDisplay();
   updateTurnIndicator();
-
+renderBoard();
   // ✅ Update draggable properly
   updateDraggablePieces();
 
