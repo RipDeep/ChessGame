@@ -18,7 +18,7 @@ let gameActive = false;
 
 let currentTurn = "w"; // chess.js starts with white
 let timerInterval = null;
-let timeLeft = 5;
+let timeLeft = 45;
 let timeoutCount = { w: 0, b: 0 };
 const MAX_TIMEOUTS = 3;
 let highlightedTargets = []; // array of {row, col} for legal-move highlights
@@ -384,8 +384,9 @@ socket.on("move", function (move) {
   if (chess.in_checkmate()) {
     checkmateSound.play();
     const winner = chess.turn() === "w" ? "b" : "w"; // the player who made the last move
-    const loser = chess.turn(); // the player who is now in checkmate
-
+    const loser = chess.turn(); // the player who is now in 
+    const reason = "Checkmate"
+    socket.emit("gameOverForGame", { winner, reason });
     stopGame(winner, "Checkmate");
     return;
   } else if (chess.in_check()) {
@@ -401,7 +402,7 @@ socket.on("move", function (move) {
 const startTimer = () => {
   if (!gameActive) return;
   clearInterval(timerInterval);
-  timeLeft = 5;
+  timeLeft = 45;
   updateTimerDisplay();
 
   timerInterval = setInterval(() => {
@@ -601,6 +602,7 @@ const stopGame = (winner, reason) => {
 
 // Listen to server gameOver
 socket.on("gameOver", ({ winner, reason }) => {
+  socket.emit("gameOverForGame", { winner, reason });
   stopGame(winner, reason);
 });
 

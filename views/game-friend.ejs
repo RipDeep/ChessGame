@@ -735,7 +735,149 @@
 
 
 
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  transition: opacity 0.3s ease;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
 
+/* Popup */
+.popup-content {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 1rem;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: fadeIn 0.4s ease forwards;
+}
+
+/* Heading */
+.popup-content h2 {
+  font-size: 1.8rem;
+  color: #111827;
+}
+
+/* Info text */
+.popup-content .info-text {
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+/* Link container */
+.link-container {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.link-container input {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #d1d5db;
+  font-size: 0.95rem;
+  color: #111827;
+  background: #f9fafb;
+}
+
+.link-container input:focus {
+  outline: none;
+  border-color: #4ade80;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.3);
+}
+
+/* Buttons */
+button {
+  cursor: pointer;
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+#copy-link-btn {
+  background: #4ade80;
+  color: #fff;
+}
+
+#copy-link-btn:hover {
+  background: #22c55e;
+}
+
+.whatsapp-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: #25d366;
+  color: #fff;
+}
+
+.whatsapp-btn img {
+  width: 20px;
+  height: 20px;
+}
+
+.whatsapp-btn:hover {
+  background: #1ebe57;
+}
+
+.start-btn {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.start-btn:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
+
+.start-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(-10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #4ade80;
+  color: #fff;
+  padding: 0.8rem 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  font-weight: 600;
+  font-size: 0.95rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.4s ease;
+  z-index: 2000;
+}
+
+/* Show the toast */
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
 
 
     </style>
@@ -755,22 +897,27 @@
       </div>
     </div>
 
+    <!-- <button onclick="navigator.clipboard.writeText(document.getElementById('share-link').value)">Copy Link</button> -->
+
 <div id="waiting-overlay" class="overlay">
   <div class="popup-content">
-    <h2>Play with a Friend</h2>
+    <h2>🎮 Play with a Friend</h2>
     <p class="info-text">Share this link with your friend to start playing:</p>
+
     <div class="link-container">
       <input type="text" id="share-link" readonly value=""/>
-
-
-      <button onclick="navigator.clipboard.writeText(document.getElementById('share-link').value)">Copy Link</button>
+      <button id="copy-link-btn">Copy Link</button>
     </div>
+
     <button id="share-whatsapp" class="whatsapp-btn">
-      <img src="/icons/whatsapp.svg" alt="WhatsApp" /> Share on WhatsApp
+      <img src="/icons/whatsapp.png" alt="WhatsApp" /> Share on WhatsApp
     </button>
+
     <button id="start-game" class="start-btn" disabled>Start Game</button>
   </div>
 </div>
+
+<div id="toast" class="toast">Link copied to clipboard!</div>
 
 
 

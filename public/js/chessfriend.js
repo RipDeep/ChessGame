@@ -1,3 +1,30 @@
+const toast = document.getElementById("toast");
+
+document.getElementById('copy-link-btn').addEventListener('click', () => {
+  const link = document.getElementById('share-link').value;
+  navigator.clipboard.writeText(link).then(() => {
+    // Show toast
+    toast.classList.add("show");
+
+    // Hide after 2.5s
+    setTimeout(() => toast.classList.remove("show"), 2500);
+  });
+});
+
+
+const whatsappBtn = document.getElementById("share-whatsapp");
+whatsappBtn.addEventListener("click", () => {
+  const link = document.getElementById("share-link").value;
+  const message = encodeURIComponent(`Hey! Let's play chess together. Join using this link: ${link}`);
+  
+  // WhatsApp Web or App
+  const url = `https://wa.me/?text=${message}`;
+
+  // Open in new tab
+  window.open(url, "_blank");
+});
+
+
 // ------------------- Room Setup -------------------
 let roomId = window.location.pathname.split("/").pop(); // extract roomId from URL
 
@@ -44,7 +71,7 @@ let playerRole = null; // "w", "b", or "spectator"
 let gameActive = false;
 let currentTurn = "w";
 let timerInterval = null;
-let timeLeft = 5;
+let timeLeft = 45;
 let selectedSquare = null;
 let draggedPiece = null;
 let sourceSquare = null;
@@ -92,7 +119,7 @@ const startTimer = () => {
   if (!gameActive || playerRole === "spectator") return;
 
   // Reset time
-  timeLeft = 5;
+  timeLeft = 45;
   updateTimerDisplay();
 
   timerInterval = setInterval(() => {
@@ -445,6 +472,7 @@ socket.on("playerRole", (role) => {
 
 socket.on("friendJoined", () => {
   if (playerRole === "w") startBtn.disabled = false;
+  socket.emit("startGame", { roomId });
 });
 socket.on("hideOverlay", () => overlay.classList.add("hidden"));
 
@@ -610,7 +638,7 @@ socket.on("playerSkippedTurn", ({ skippedTurn, nextTurn }) => {
   currentTurn = nextTurn; // ⚡ important
   selectedSquare = null;
 
-  timeLeft = 5;
+  timeLeft = 45;
   updateTimerDisplay();
   updateTurnIndicator();
 
@@ -650,8 +678,10 @@ socket.on("switchTurn", (newTurn) => {
   startTimer();
 });
 
-socket.on("gameOver", ({ winner, reason }) => stopGame(winner, reason));
-
+socket.on("gameOver", ({ winner, reason }) => {
+  socket.emit("gameOverForGame", { winner, reason })
+  stopGame(winner, reason)
+});
 let gameAlreadyOver = false;
 
 // ------------------- Game Over -------------------
