@@ -261,7 +261,7 @@ const handleMove = (source, target) => {
     checkmateSound.currentTime = 0;
     checkmateSound.play();
     let reason = "Checkmate";
-    socket.emit("gameOverForGame", { currentTurn, reason });
+    // socket.emit("gameOverForGame", { currentTurn, reason });
     stopGame(currentTurn, "Checkmate");
     gameActive = false;
     return;
@@ -310,6 +310,9 @@ function forceTurn(color) {
 const startTimer = () => {
   clearInterval(timerInterval);
   timeLeft = 45;
+
+
+
   updateTimerDisplay();
 
   timerInterval = setInterval(() => {
@@ -330,7 +333,7 @@ const startTimer = () => {
         if (userTimeoutCount >= MAX_TIMEOUTS) {
           // End game — user missed 3 turns in a row
           let reason = "User missed 3 moves in a row";
-          socket.emit("gameOverForGame", { computerRole, reason });
+          // socket.emit("gameOverForGame", { computerRole, reason });
           stopGame(computerRole, "User missed 3 moves in a row");
 
           // Disconnect socket after short delay
@@ -359,7 +362,7 @@ const startTimer = () => {
         // COMPUTER timeout (safety)
         let reason = "Computer timeout";
         let winner = "w";
-        socket.emit("gameOverForGame", { winner, reason });
+        // socket.emit("gameOverForGame", { winner, reason });
         stopGame("w", "Computer timeout");
       }
     }
@@ -402,7 +405,7 @@ function computerMove() {
     checkmateSound.play();
 
     let reason = "Checkmate";
-    socket.emit("gameOverForGame", { computerRole, reason });
+    // socket.emit("gameOverForGame", { computerRole, reason });
 
     stopGame(computerRole, "Checkmate");
     return;
@@ -420,11 +423,12 @@ function computerMove() {
   ) {
     let winner = "No one";
     let reason = "Draw";
-    socket.emit("gameOverForGame", { winner, reason });
+    // socket.emit("gameOverForGame", { winner, reason });
 
-    stopGame(null, "Draw");
+    stopGame("no one", "Draw");
     return;
   }
+
 
   // Switch back to user
   currentTurn = currentTurn === "w" ? "b" : "w";

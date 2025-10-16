@@ -160,7 +160,7 @@ const startTimer = () => {
         const reason = `${currentTurn.toUpperCase()} missed 3 turns in a row`;
 
         // Notify server and both clients
-        socket.emit("gameOverForGame", { winner, reason });
+        socket.emit("gameOverForGame", {roomId, winner, reason });
 
         // Show result locally
         stopGame(winner, reason);
@@ -514,7 +514,7 @@ socket.on("friendMove", ({ from, to, promotion, color }) => {
   if (chess.in_checkmate()) {
     const winner = chess.turn() === "w" ? "b" : "w";
     const reason = "Checkmate";
-    socket.emit("gameOverForGame", { winner, reason });
+    socket.emit("gameOverForGame", {roomId, winner, reason });
     stopGame(winner, "Checkmate");
   }
   if (chess.in_check()) {
@@ -679,7 +679,7 @@ socket.on("switchTurn", (newTurn) => {
 });
 
 socket.on("gameOver", ({ winner, reason }) => {
-  socket.emit("gameOverForGame", { winner, reason })
+  socket.emit("gameOverForGame", {roomId, winner, reason })
   stopGame(winner, reason)
 });
 let gameAlreadyOver = false;
