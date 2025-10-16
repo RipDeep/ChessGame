@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chess Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+
+      * {
+        font-family: "Inter", sans-serif;
+      }
+
+      body {
+        background: #0f0e0e;
+        position: relative;
+        /* overflow: hidden; */
+      }
+
+      /* Animated Background */
+      .bg-pattern {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(
+            circle at 30% 20%,
+            rgba(14, 165, 233, 0.12) 0%,
+            transparent 40%
+          ),
+          radial-gradient(
+            circle at 70% 80%,
+            rgba(34, 211, 238, 0.08) 0%,
+            transparent 40%
+          );
+        z-index: 0;
+        animation: gradientPulse 10s ease infinite;
+      }
+
+      @keyframes gradientPulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+      }
+
+      .bg-grid {
+        position: fixed;
+        inset: 0;
+        background-image: linear-gradient(
+            rgba(14, 164, 233, 0.138) 1px,
+            transparent 1px
+          ),
+          linear-gradient(90deg, rgba(14, 164, 233, 0.14) 1px, transparent 1px);
+        background-size: 60px 60px;
+        z-index: 0;
+        animation: gridSlide 25s linear infinite;
+      }
+
+      @keyframes gridSlide {
+        0% {
+          transform: translate(0, 0);
+        }
+        100% {
+          transform: translate(60px, 60px);
+        }
+      }
+
+      /* Main Container */
+      .game-container {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 2rem;
+        gap: 2rem;
+      }
+
+      /* Status Card */
+      .status-card {
+        background: rgba(20, 20, 20, 0.7);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        padding: 1.5rem 3rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        text-align: center;
+        animation: fadeInDown 0.6s ease-out;
+        width: 400px;
+      }
+
+      .chessboard {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        grid-template-rows: repeat(8, minmax(0, 1fr));
+        width: min(55vw, 420px); /* slightly larger */
+        height: min(55vw, 420px);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: inset 0 0 0 2px rgba(14, 165, 233, 0.2),
+          0 8px 25px rgba(0, 0, 0, 0.45);
+        transform: rotate(0deg);
+        transition: all 0.5s ease;
+      }
+
+      @keyframes fadeInDown {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      #turn-indicator {
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        /* background: linear-gradient(135deg, #ffffff, #0ea5e9);
+         */
+
+        background-color: #0ea5e9;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s ease;
+      }
+
+      #timer {
+        font-family: "Inter", monospace;
+        font-size: 1.14rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        color: #22d3ee;
+        text-shadow: 0 0 20px rgba(34, 211, 238, 0.4);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Chessboard Container */
+      .board-wrapper {
+        background: rgba(20, 20, 20, 0.7);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 24px;
+        padding: 2rem;
+        box-shadow: 0 0 60px rgba(14, 165, 233, 0.15),
+          0 20px 60px rgba(0, 0, 0, 0.6);
+        animation: fadeInUp 0.8s ease-out;
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes shake {
+  0% { transform: translate(0px, 0px); }
+  20% { transform: translate(-5px, 0px); }
+  40% { transform: translate(5px, 0px); }
+  60% { transform: translate(-5px, 0px); }
+  80% { transform: translate(5px, 0px); }
+  100% { transform: translate(0px, 0px); }
+}
+
+.piece.shake {
+  animation: shake 0.5s;
+}
+
+/* Highlight square or piece in red */
+/*.check {
+  animation: shake 0.5s;
+  background-color: #f87171 !important; /* red background for square */
+  /*color: #fff; /* white text on red */
+/*}*/
+
+/* Shake animation */
+/*@keyframes shake {
+  0% { transform: translate(1px, 1px) rotate(0deg); }
+  10% { transform: translate(-1px, -2px) rotate(-1deg); }
+  20% { transform: translate(-3px, 0px) rotate(1deg); }
+  30% { transform: translate(3px, 2px) rotate(0deg); }
+  40% { transform: translate(1px, -1px) rotate(1deg); }
+  50% { transform: translate(-1px, 2px) rotate(-1deg); }
+  60% { transform: translate(-3px, 1px) rotate(0deg); }
+  70% { transform: translate(3px, 1px) rotate(-1deg); }
+  80% { transform: translate(-1px, -1px) rotate(1deg); }
+  90% { transform: translate(1px, 2px) rotate(0deg); }
+  100% { transform: translate(1px, -2px) rotate(-1deg); }
+}*/
+
+
+
+
+
+
+
+
+
+      .chessboard:hover {
+        box-shadow: inset 0 0 0 2px rgba(14, 165, 233, 0.4),
+          0 15px 40px rgba(0, 0, 0, 0.6);
+      }
+
+      .square {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        transition: all 0.2s ease;
+      }
+
+      .square.light {
+        background-color: #c9c2c296;
+      }
+
+      .square.dark {
+        background-color: #464646;
+      }
+
+      .square:hover {
+        background-color: rgba(14, 165, 233, 0.15);
+        transform: scale(1.05);
+        z-index: 10;
+      }
+
+      .piece {
+        font-family: "DejaVu Sans", "Arial Unicode MS", "Noto Sans Symbols",
+          sans-serif;
+        font-size: clamp(2rem, 3vw, 2.6rem);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        user-select: none;
+      }
+
+      .piece.white {
+        color: #ffffff;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+      }
+
+      .piece.black {
+        color: #1a1a1a;
+        filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.3));
+      }
+
+      .piece.draggable {
+        cursor: grab;
+      }
+
+      .piece.draggable:active {
+        cursor: grabbing;
+      }
+
+      .piece:hover {
+        transform: scale(1.15);
+        filter: drop-shadow(0 4px 8px rgba(14, 165, 233, 0.6));
+      }
+
+      .dragging {
+        opacity: 0.4;
+        transform: scale(0.9);
+      }
+
+      .flipped {
+        transform: rotate(180deg);
+      }
+
+      .flipped .piece {
+        transform: rotate(180deg);
+      }
+
+      /* Game Over Popup */
+      .game-over-popup {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(10px);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        animation: fadeIn 0.4s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .popup-content {
+        background: linear-gradient(
+          135deg,
+          rgba(20, 20, 30, 0.95),
+          rgba(30, 30, 40, 0.95)
+        );
+        backdrop-filter: blur(20px);
+        padding: 3rem 3.5rem;
+        border-radius: 24px;
+        border: 1px solid rgba(14, 165, 233, 0.3);
+        box-shadow: 0 0 80px rgba(14, 165, 233, 0.3),
+          0 20px 60px rgba(0, 0, 0, 0.8);
+        text-align: center;
+        color: #fff;
+        min-width: 350px;
+        animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      @keyframes popIn {
+        from {
+          opacity: 0;
+          transform: scale(0.8) translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      .popup-content h2 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #facc15, #fbbf24);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 30px rgba(250, 204, 21, 0.3);
+      }
+
+      .popup-content .result {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        color: #22d3ee;
+        letter-spacing: 0.5px;
+      }
+
+      .popup-content .reason {
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+        color: #94a3b8;
+        font-weight: 400;
+      }
+
+      #go-home-btn {
+        padding: 1rem 2.5rem;
+        font-size: 1.1rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #0ea5e9, #22d3ee);
+        border: none;
+        border-radius: 50px;
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 0 30px rgba(14, 165, 233, 0.4);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      #go-home-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0 40px rgba(14, 165, 233, 0.6);
+        background: linear-gradient(135deg, #22d3ee, #06b6d4);
+      }
+
+      #go-home-btn:active {
+        transform: translateY(-1px);
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .game-container {
+          padding: 1rem;
+          gap: 1.5rem;
+        }
+
+        .status-card {
+          padding: 1rem 2rem;
+        }
+
+        #turn-indicator {
+          font-size: 1rem;
+        }
+
+        #timer {
+          font-size: 1.1rem;
+        }
+
+        .board-wrapper {
+          padding: 1rem;
+        }
+
+        .chessboard {
+          width: min(90vw, 400px);
+          height: min(90vw, 400px);
+        }
+
+        .piece {
+          font-size: 1.8rem;
+        }
+
+        .popup-content {
+          min-width: 300px;
+          padding: 2rem 2.5rem;
+        }
+
+        .popup-content h2 {
+          font-size: 2rem;
+        }
+
+        .popup-content .result {
+          font-size: 1.5rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .game-container {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          padding: 1.3rem;
+          gap: 1.5rem;
+        }
+
+        .status-card{
+          width: 85vw;
+        }
+
+        .chessboard {
+          width: min(91vw, 310px);
+          height: min(91vw, 310px);
+        }
+
+        .piece {
+          font-size: 1.5rem;
+        }
+
+        .popup-content {
+          min-width: 280px;
+          padding: 1.5rem 2rem;
+        }
+
+        #go-home-btn {
+          padding: 0.875rem 2rem;
+          font-size: 1rem;
+        }
+      }
+
+      /* Accessibility */
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  font-size: 1.8rem;
+  z-index: 1000;
+}
+
+.hidden {
+  display: none;
+}
+
+.square.highlight {
+  outline: 3px solid rgba(255, 215, 0, 0.8);
+  box-shadow: inset 0 0 10px rgba(255, 215, 0, 0.6);
+}
+
+.square.selected {
+  outline: 3px solid rgba(0, 200, 255, 0.8);
+  box-shadow: inset 0 0 10px rgba(0, 200, 255, 0.5);
+}
+
+
+
+:root {
+    --popup-bg: #ffffff;
+    --overlay-bg: rgba(0,0,0,0.6);
+    --accent-color: #4ade80;
+    --danger-color: #f87171;
+    --text-color: #1f2937;
+    --input-bg: #f3f4f6;
+    --button-bg: #4ade80;
+    --button-hover: #22c55e;
+    --whatsapp-color: #25D366;
+  }
+
+  /* Overlay */
+  .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--overlay-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+    transition: opacity 0.3s ease;
+  }
+
+  .overlay.hidden {
+    display: none;
+  }
+
+  /* Popup */
+  .popup-content {
+    background: var(--popup-bg);
+    padding: 2rem;
+    border-radius: 16px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .popup-content h2 {
+    font-size: 1.75rem;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+  }
+
+  .popup-content .info-text {
+    font-size: 0.95rem;
+    color: #4b5563;
+  }
+
+  /* Link container */
+  .link-container {
+    display: flex;
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .link-container input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background-color: var(--input-bg);
+    font-size: 0.9rem;
+    color: var(--text-color);
+    outline: none;
+  }
+
+  .link-container input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.3);
+  }
+
+  .link-container button {
+    padding: 0.5rem 1rem;
+    border: none;
+    background-color: var(--accent-color);
+    color: white;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .link-container button:hover {
+    background-color: #22c55e;
+  }
+
+  /* WhatsApp button */
+  .whatsapp-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background-color: var(--whatsapp-color);
+    color: white;
+    padding: 0.6rem 1rem;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .whatsapp-btn img {
+    width: 20px;
+    height: 20px;
+  }
+
+  .whatsapp-btn:hover {
+    background-color: #1ebe57;
+  }
+
+  /* Start Game button */
+  .start-btn {
+    padding: 0.7rem 1.5rem;
+    border: none;
+    border-radius: 12px;
+    background-color: var(--accent-color);
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .start-btn:hover:not(:disabled) {
+    background-color: var(--button-hover);
+  }
+
+  .start-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Animations */
+  @keyframes fadeIn {
+    0% {opacity: 0; transform: scale(0.95);}
+    100% {opacity: 1; transform: scale(1);}
+  }
+
+  /* Responsive */
+  @media (max-width: 500px) {
+    .popup-content {
+      padding: 1.5rem;
+    }
+
+    .popup-content h2 {
+      font-size: 1.5rem;
+    }
+
+    .link-container input {
+      font-size: 0.85rem;
+    }
+
+    .start-btn, .whatsapp-btn {
+      font-size: 0.9rem;
+      padding: 0.6rem 1rem;
+    }
+  }
+
+
+
+
+
+  .square {
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.check {
+  animation: shake 0.5s;
+  background-color: #f87171 !important; /* red background for square */
+  color: #fff; /* white text on red */
+}
+
+/* Shake animation */
+@keyframes shake {
+  0% { transform: translate(1px, 1px) rotate(0deg); }
+  10% { transform: translate(-1px, -2px) rotate(-1deg); }
+  20% { transform: translate(-3px, 0px) rotate(1deg); }
+  30% { transform: translate(3px, 2px) rotate(0deg); }
+  40% { transform: translate(1px, -1px) rotate(1deg); }
+  50% { transform: translate(-1px, 2px) rotate(-1deg); }
+  60% { transform: translate(-3px, 1px) rotate(0deg); }
+  70% { transform: translate(3px, 1px) rotate(-1deg); }
+  80% { transform: translate(-1px, -1px) rotate(1deg); }
+  90% { transform: translate(1px, 2px) rotate(0deg); }
+  100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+
+.square.checkmate {
+  animation: checkmateFlash 2s ease-in-out;
+  background-color: #f43f5e !important; /* darker red */
+}
+
+
+@keyframes checkmateFlash {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.3) rotate(5deg); }
+  50% { transform: scale(1.4) rotate(-5deg); }
+  75% { transform: scale(1.3) rotate(5deg); }
+}
+
+
+
+
+
+
+    </style>
+  </head>
+  <body>
+    <div class="bg-pattern"></div>
+    <div class="bg-grid"></div>
+
+    <div class="game-container">
+      <div class="status-card">
+        <div id="turn-indicator">Waiting for opponent joined to start game...</div>
+        <div id="timer">⏱ 45s</div>
+      </div>
+
+      <div class="board-wrapper">
+        <div class="chessboard"></div>
+      </div>
+    </div>
+
+<div id="waiting-overlay" class="overlay">
+  <div class="popup-content">
+    <h2>Play with a Friend</h2>
+    <p class="info-text">Share this link with your friend to start playing:</p>
+    <div class="link-container">
+      <input type="text" id="share-link" readonly value=""/>
+
+
+      <button onclick="navigator.clipboard.writeText(document.getElementById('share-link').value)">Copy Link</button>
+    </div>
+    <button id="share-whatsapp" class="whatsapp-btn">
+      <img src="/icons/whatsapp.svg" alt="WhatsApp" /> Share on WhatsApp
+    </button>
+    <button id="start-game" class="start-btn" disabled>Start Game</button>
+  </div>
+</div>
+
+
+
+    <script
+      src="https://cdn.socket.io/4.8.1/socket.io.min.js"
+      integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"
+      integrity="sha512-xRllwz2gdZciIB+AkEbeq+gVhX8VB8XsfqeFbUh+SzHlN96dEduwtTuVuc2u9EROlmW9+yhRlxjif66ORpsgVA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script src="/js/chessfriend.js"></script>
+  </body>
+</html>

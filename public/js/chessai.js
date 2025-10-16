@@ -7,6 +7,7 @@ const checkSound = new Audio("/sounds/check.mp3");
 const checkmateSound = new Audio("/sounds/checkmate.mp3");
 const wrongSound = new Audio("/sounds/wrong.mp3");
 const startGameSound = new Audio("/sounds/start.mp3");
+const countdownSound = new Audio("/sounds/countdown.mp3");
 
 const boardElement = document.querySelector(".chessboard");
 let draggedPiece = null;
@@ -287,13 +288,22 @@ const switchTurn = () => {
 const updateTurnIndicator = () => {
   turnIndicator.textContent =
     currentTurn === computerRole ? "Computer's Turn" : "Your Turn";
-    if (currentTurn === computerRole) {
-        turnIndicator.style.backgroundColor = "#facc15";
-    }else{
-        turnIndicator.style.backgroundColor = "#4ade80"; 
-    }
+  if (currentTurn === computerRole) {
+    turnIndicator.style.backgroundColor = "#facc15";
+  } else {
+    turnIndicator.style.backgroundColor = "#4ade80";
+  }
 };
 
+function forceTurn(color) {
+  // Replace the FEN's active color (the part right after the space)
+  const parts = chess.fen().split(" ");
+  parts[1] = color; // 'w' or 'b'
+  const newFen = parts.join(" ");
+  chess.load(newFen);
+}
+
+// ---------------- Timer ----------------
 // ---------------- Timer ----------------
 const startTimer = () => {
   clearInterval(timerInterval);
@@ -303,33 +313,52 @@ const startTimer = () => {
   timerInterval = setInterval(() => {
     timeLeft--;
     updateTimerDisplay();
+    if (timeLeft <= 5) {
+
+      countdownSound.currentTime = 0;
+      countdownSound.play();
+    }
 
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
 
       if (currentTurn !== computerRole) {
-        // User missed the move
+        // USER missed their turn
         userTimeoutCount++;
-
-        console.log(`User missed ${userTimeoutCount} move(s)`);
+        
 
         if (userTimeoutCount >= MAX_TIMEOUTS) {
-          // User missed 3 moves → computer wins
+          // End game — user missed 3 turns in a row
+          
           stopGame(computerRole, "User missed 3 moves in a row");
-          gameActive = false;
-          return;
+
+          // Disconnect socket after short delay
+          setTimeout(() => {
+            if (socket && socket.connected) {
+              socket.disconnect();
+              
+            }
+          }, 1000);
+
+          return; // Stop everything here
         }
 
-        // Force turn to computer
-        switchTurn();
+        // Skip user's move — give turn to computer
+        currentTurn = computerRole;
+        forceTurn(computerRole); // sync chess.js turn
+        updateTurnIndicator();
+        renderBoard();
 
-        if (playAgainstComputer && currentTurn === computerRole) {
-          setTimeout(() => computerMove(), 500);
+        // Let computer play after a short delay
+        if (playAgainstComputer && gameActive) {
+          setTimeout(() => {
+            computerMove();
+          }, 600);
         }
       } else {
-        // Computer shouldn't run out of time, just safety
-        stopGame(currentTurn, "Timeout");
-        gameActive = false;
+        // COMPUTER timeout (safety)
+        
+        stopGame("w", "Computer timeout");
       }
     }
   }, 1000);
@@ -340,13 +369,21 @@ const updateTimerDisplay = () => {
 };
 
 // ---------------- Computer AI ----------------
+// ---------------- Computer AI ----------------
 function computerMove() {
-  const bestMove = getBestMove(chess, 3); // 3-ply depth, can increase to 4-5 for stronger AI
-  if (!bestMove) return;
+  if (!gameActive) return;
+  if (chess.turn() !== computerRole) {
+    console.warn("computerMove() called when it's not computer's turn.");
+    return;
+  }
+
+  const bestMove = getBestMove(chess, 3);
+  if (!bestMove) {
+    stopGame("w", "Computer has no legal moves (stalemate or error)");
+    return;
+  }
 
   const moveResult = chess.move(bestMove);
-
-  // Store last move
   lastMove = { from: bestMove.from, to: bestMove.to };
 
   // Play sound
@@ -361,11 +398,10 @@ function computerMove() {
   if (chess.in_checkmate()) {
     checkmateSound.currentTime = 0;
     checkmateSound.play();
-    const winner = currentTurn; // the player who just moved
-    stopGame(winner, "Checkmate");
-    gameActive = false;
+    stopGame(computerRole, "Checkmate");
     return;
   }
+
   if (chess.in_check()) {
     checkSound.currentTime = 0;
     checkSound.play();
@@ -380,8 +416,13 @@ function computerMove() {
     return;
   }
 
-  switchTurn();
+  // Switch back to user
+  currentTurn = currentTurn === "w" ? "b" : "w";
+  forceTurn(currentTurn); // ensure sync
+  // userTimeoutCount = 0; // reset since computer moved
+  updateTurnIndicator();
   renderBoard();
+  startTimer();
 }
 
 // ---------------- Minimax + Alpha-Beta ----------------
@@ -448,7 +489,6 @@ function evaluateBoard(board) {
   return score;
 }
 
-
 const stopGame = (winner, reason) => {
   gameActive = false;
   clearInterval(timerInterval); // stop timer
@@ -459,7 +499,7 @@ const stopGame = (winner, reason) => {
   popup.innerHTML = `
     <div class="popup-content">
     <h2>Game Over</h2>
-    <p class="result">"${winner === 'b'? "Computer" : "you"} win"</p>
+    <p class="result">"${winner === "b" ? "Computer" : "you"} win"</p>
     <p class="reason">Reason: ${reason}</p>
     <button id="go-home-btn">Go to Home</button>
   </div>
@@ -475,10 +515,9 @@ const stopGame = (winner, reason) => {
 
   setTimeout(() => {
     socket.disconnect();
-    console.log("Socket disconnected automatically after game over.");
+    
   }, 700);
 };
-
 
 // ---------------- Init ----------------
 renderBoard();

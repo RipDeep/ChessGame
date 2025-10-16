@@ -7,6 +7,7 @@ const checkSound = new Audio("/sounds/check.mp3");
 const checkmateSound = new Audio("/sounds/checkmate.mp3");
 const wrongSound = new Audio("/sounds/wrong.mp3");
 const startGameSound = new Audio("/sounds/start.mp3");
+const countdownSound = new Audio("/sounds/countdown.mp3");
 
 const boardElement = document.querySelector(".chessboard");
 let draggedPiece = null;
@@ -17,7 +18,9 @@ let gameActive = false;
 
 let currentTurn = "w"; // chess.js starts with white
 let timerInterval = null;
-let timeLeft = 45;
+let timeLeft = 5;
+let timeoutCount = { w: 0, b: 0 };
+const MAX_TIMEOUTS = 3;
 let highlightedTargets = []; // array of {row, col} for legal-move highlights
 
 const timerElement = document.getElementById("timer");
@@ -300,6 +303,9 @@ const handleMove = (source, target) => {
     return; // do not send illegal move
   }
 
+  // Reset timeout counter for the mover (they acted)
+
+  timeoutCount[piece.color] = 0;
   socket.emit("move", move);
 };
 
@@ -395,14 +401,77 @@ socket.on("move", function (move) {
 const startTimer = () => {
   if (!gameActive) return;
   clearInterval(timerInterval);
-  timeLeft = 45;
+  timeLeft = 5;
   updateTimerDisplay();
 
   timerInterval = setInterval(() => {
     timeLeft--;
     updateTimerDisplay();
 
+    if (timeLeft <= 5) {
+
+      countdownSound.currentTime = 0;
+      countdownSound.play();
+    }
+
     if (timeLeft <= 0) {
+
+
+      timeoutCount[currentTurn] = (timeoutCount[currentTurn] || 0) + 1;
+
+
+      // if (timeoutCount[currentTurn] >= MAX_TIMEOUTS) {
+      //   const winner = currentTurn === "w" ? "b" : "w";
+      //   stopGame(winner, `${currentTurn.toUpperCase()} missed 3 turns in a row`);
+
+      //   socket.emit("gameOver", { roomId, winner, reason });
+
+      //   // socket.emit("gameOver", { winner, reason: "Opponent missed 3 moves" });
+      //   setTimeout(() => {
+      //       if (socket && socket.connected) {
+      //         socket.disconnect();
+      //         console.log("Both  disconnected due to 3 missed turns.");
+      //       }
+      //       window.location.href = "/";
+      //     }, 1000);
+      //   return;
+      // }
+
+
+
+
+
+if (timeoutCount[currentTurn] >= MAX_TIMEOUTS) {
+  const winner = currentTurn === "w" ? "b" : "w";
+  const reason = `${currentTurn.toUpperCase()} missed 3 turns in a row`;
+
+  // Notify server and both clients
+  socket.emit("gameOverForGame", { winner, reason });
+
+  // Show result locally
+  stopGame(winner, reason);
+
+  // ✅ Auto-disconnect both clients after popup
+  setTimeout(() => {
+    if (socket && socket.connected) {
+      socket.disconnect();
+      
+    }
+    // Optionally redirect home
+    window.location.href = "/";
+  }, 2000);
+
+  return;
+}
+
+
+
+
+
+
+
+
+
       clearInterval(timerInterval);
       if (playerRole === currentTurn) {
         socket.emit("timeUp", { player: currentTurn });
@@ -441,7 +510,6 @@ socket.on("switchTurn", (newTurn) => {
   currentTurn = newTurn;
 
   if (chess.turn() !== currentTurn) {
-    // Manually flip turn without making a move
     chess._turn = currentTurn; // internal property used by chess.js
   }
 
@@ -474,7 +542,7 @@ socket.on("gameOver", ({ winner, reason }) => {
 });
 
 socket.on("disconnect", () => {
-  console.log("Player disconnected:", socket.id);
+  
 
   let leftRole = null;
 
@@ -492,7 +560,15 @@ socket.on("disconnect", () => {
   }
 });
 
+
+let gameAlreadyOver = false;
+
+
+
+
 const stopGame = (winner, reason) => {
+   if (gameAlreadyOver) return;
+    gameAlreadyOver = true;
   gameActive = false;
   clearInterval(timerInterval); // stop timer
 
@@ -511,6 +587,7 @@ const stopGame = (winner, reason) => {
 
   // Disable dragging pieces
   document.querySelectorAll(".piece").forEach((p) => (p.draggable = false));
+  
 
   document.getElementById("go-home-btn").addEventListener("click", () => {
     window.location.href = "/";
@@ -518,7 +595,7 @@ const stopGame = (winner, reason) => {
 
   setTimeout(() => {
     socket.disconnect();
-    console.log("Socket disconnected automatically after game over.");
+    
   }, 700);
 };
 
